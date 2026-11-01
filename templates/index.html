@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>URLPulse - Bulk URL Health Checker</title>
+    <style>
+        body { font-family: system-ui, -apple-system, sans-serif; max-width: 800px; margin: 2rem auto; padding: 0 1rem; background: #f8f9fa; }
+        h1 { color: #1a73e8; }
+        textarea { width: 100%; height: 150px; font-family: monospace; padding: 0.5rem; }
+        button { background: #1a73e8; color: white; border: none; padding: 0.75rem 1.5rem; font-size: 1rem; cursor: pointer; border-radius: 4px; }
+        button:hover { background: #1557b0; }
+        #results { margin-top: 1.5rem; }
+        table { width: 100%; border-collapse: collapse; background: white; }
+        th, td { padding: 0.5rem; border-bottom: 1px solid #ddd; text-align: left; }
+        .healthy { color: #0f9d58; font-weight: bold; }
+        .unhealthy { color: #d93025; font-weight: bold; }
+        .summary { background: white; padding: 1rem; border-radius: 4px; margin-bottom: 1rem; }
+        footer { margin-top: 2rem; font-size: 0.8rem; color: #666; text-align: center; }
+    </style>
+</head>
+<body>
+    <h1>URLPulse</h1>
+    <p>Bulk URL Health Checker. Paste URLs (one per line) and check their status.</p>
+    <form id="checkForm">
+        <textarea id="urls" placeholder="https://example.com&#10;https://github.com&#10;https://nonexistent.invalid"></textarea>
+        <br><br>
+        <button type="submit">Check URLs</button>
+    </form>
+    <div id="results"></div>
+    <footer>Built by Mourad.Soltani · Minimal micro-SaaS tool</footer>
+    <script>
+        document.getElementById('checkForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const urls = document.getElementById('urls').value;
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<p>Checking...</p>';
+            try {
+                const response = await fetch('/api/check', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ urls })
+                });
+                const data = await response.json();
+                if (!response.ok) {
+                    resultsDiv.innerHTML = `<p style="color:red">${data.error || 'Error'}</p>`;
+                    return;
+                }
+                let html = `<div class="summary">
+                    <strong>Summary:</strong> ${data.summary.healthy} healthy / ${data.summary.unhealthy} unhealthy out of ${data.summary.total}
+                </div>
+                <table>
+                    <tr><th>URL</th><th>Status</th><th>Healthy</th><th>Time (ms)</th><th>Error</th></tr>`;
+                data.results.forEach(r => {
+                    const cls = r.healthy ? 'healthy' : 'unhealthy';
+                    html += `<tr>
+                        <td>${r.url}</td>
+                        <td>${r.status_code || '-'}</td>
+                        <td class="${cls}">${r.healthy ? 'Yes' : 'No'}</td>
+                        <td>${r.response_time_ms}</td>
+                        <td>${r.error || '-'}</td>
+                    </tr>`;
+                });
+                html += '</table>';
+                resultsDiv.innerHTML = html;
+            } catch (err) {
+                resultsDiv.innerHTML = `<p style="color:red">Request failed: ${err.message}</p>`;
+            }
+        });
+    </script>
+</body>
+</html>
